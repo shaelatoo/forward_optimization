@@ -1,5 +1,5 @@
 function forward_comparison_optimization,images,hdrs,magfile, $
-    scale,maxlvar=maxlvar,maxits=maxits,simplex=simplex, $
+    scale,maxits=maxits,simplex=simplex, $
     tims=tims,min_values=min_values
 
 
@@ -111,6 +111,7 @@ nangles=N_ELEMENTS(angles)
 ; read magfile and initialize some elements of data block
 PFSS_MAG_CREATE_SJ,magnetogram,magtype,nlat0,file=magfile,/quiet
 magnetogram=magnetogram-mean(magnetogram)
+PFSS_GET_POTL_COEFFS,magnetogram,rtop=rss
 nlat=n_elements(theta)
 nlon=2*nlat
 cth=cos(theta)
@@ -123,6 +124,12 @@ EXTRACT_HEADER_DATA,hdrs,ctrs=ctrs,res=res,obspos=obspos, $
 if obspos[0] eq -1 then begin    ; observer position is not in header file - should be user-provided
   obspos=[[lats],[lons]]
 endif
+
+
+; fill "now" variable in PFSS structure
+image=MRDFITS(magfile,0,hdr)
+magwcs=FITSHEAD2WCS(hdr)
+now=magwcs.time.fits_date
 
 
 ; initialize simplex & magt
@@ -143,7 +150,7 @@ for i=0,nvert-1 do simplex[i,i+1]=sim0[i]+ $
 psum=0
 y=FLTARR(nvert+1)
 for i=0,nvert do y[i]=HARMONIC_FORWARD_TRYPOINT(simplex,y, $
-  psum,i,1.,images,ctrs,obspos,res,maxlvar,occultr, $
+  psum,i,1.,images,ctrs,obspos,res,occultr, $
   /penalty_only)
 ncalls=LONG(nvert)    ; number of penalty function calculations
 
@@ -186,21 +193,21 @@ while cnt lt maxits do begin   ;Each iteration
   
   ; try a reflection
   ytry=HARMONIC_FORWARD_TRYPOINT(simplex,y,psum,highest, $
-     reflection,images,spclatlon,ctrs,obspos,res,maxlvar, $
+     reflection,images,spclatlon,ctrs,obspos,res, $
      occultr,/penalty_only)
   ncalls++
   
   ; if ytry is better than the best point, expand
   if ytry le y[lowest] then begin
     ytry=HARMONIC_FORWARD_TRYPOINT(simplex,y,psum,highest, $
-       expansion,images,spclatlon,ctrs,obspos,res,maxlvar, $
+       expansion,images,spclatlon,ctrs,obspos,res, $
        occultr,/penalty_only)
     ncalls++
   endif else if ytry ge y[next_highest] then begin
     ; if ytry is the new worst point, contract
     ysave = y[highest]
     ytry=HARMONIC_FORWARD_TRYPOINT(simplex,y,psum,highest, $
-      contraction,images,spclatlon,ctrs,obspos,res,maxlvar, $
+      contraction,images,spclatlon,ctrs,obspos,res, $
       occultr,/penalty_only)
     ncalls++
     if ytry ge ysave then begin
@@ -210,7 +217,7 @@ while cnt lt maxits do begin   ;Each iteration
           psum = reduction * (simplex[*,i] + simplex[*,lowest])
           simplex[*,i] = psum
           y[i]=HARMONIC_FORWARD_TRYPOINT(simplex,y,psum,i, $
-            1.0,images,spclatlon,ctrs,obspos,res,maxlvar, $
+            1.0,images,spclatlon,ctrs,obspos,res, $
             occultr,/penalty_only)
         endif
       endfor

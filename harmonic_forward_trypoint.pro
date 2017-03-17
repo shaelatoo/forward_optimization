@@ -1,5 +1,5 @@
 function HARMONIC_FORWARD_TRYPOINT,simplex,y,psum,windex, $
-  fac,images,ctrs,obspos,res,maxlvar,occultr, $
+  fac,images,ctrs,obspos,res,occultr, $
   penalty_only=penalty_only
 
 
@@ -54,7 +54,8 @@ function HARMONIC_FORWARD_TRYPOINT,simplex,y,psum,windex, $
 ;;             no alteration                                  ;;
 ;;                                                            ;;
 ;; Dependencies: extract_transform, calc_phis,pfss software   ;;
-;;                 library from SolarSoft                     ;;
+;;                 library from SolarSoft, forward library    ;;
+;;                 from SolarSoft                             ;;
 ;;                                                            ;;
 ;; Created: 02/08/2017                                        ;;
 ;;                                                            ;;
@@ -73,18 +74,16 @@ nlat=N_ELEMENTS(lat)
 nrix=N_ELEMENTS(rix)
 szsimplex=SIZE(simplex)
 szimages=SIZE(images)
-nimages=szimages[3]     ; check this
-nx=szimages[1]
-ny=szimage[2]
+nimages=szimages[1]   
+nx=szimages[2]/2.
+ny=szimages[3]/2.
 
 
 ; calculate minimum, maximum x,y of input images
-xrange=res*nx
-yrange=res*ny
-xxmin=-xrange/2.
-xxmax=xrange/2.
-yymin=-yrange/2.
-yymax=yrange/2.
+xxmin=-2.5
+xxmax=2.5
+yymin=-2.5
+yymax=2.5
 
 
 
@@ -102,19 +101,19 @@ CALC_PHIS,newmagt
 ; extrapolate magnetic field of vertex, forward model images
 PFSS_POTL_FIELD,rss,rgrid,/trunc,/quiet
 savfile='field_temp.sav'
-save,BPH,BR,BTH,I,LAT,LON,NLAT,NLON,NR,PHI,PHIAT,PHIBT, $
-     RIX,THETA,filename=savfile
+save,BPH,BR,BTH,LAT,LON,NLAT,NLON,NR,PHI,PHIAT,PHIBT, $
+     RIX,THETA,filename=savfile,now
 
 
 ; convert forward-modeled images to polar images
 model_polarims=FLTARR(nimages,nx,ny)
 for i=0,nimages-1 do begin
-  FOR_DRIVE,'pfssmod',inst='WL',cmer=obspos[1,i], $
+  FOR_DRIVE,'pfssmod',instr='WL',cmer=obspos[1,i], $
        bang=obspos[0,i],ngrid=nx,ngy=ny, $
        rindex=rix,quantmap=modelimi,occult=occultr[i], $
-       xxmin=xxmin[i],xxmax=xxmax[i],yymin=yymin[i], $
-       yymax=yymax[i]
-  model_polarims[i,*,*]=POLAR_IMAGE(modelimi,[nx/2.,ny/2.], $
+       xxmin=xxmin,xxmax=xxmax,yymin=yymin,yymax=yymax[i], $
+       /hydro,line='PB',date='2014-11-21T18:14:00'
+  model_polarims[i,*,*]=POLAR_IMAGE(modelimi.data,[nx/2.,ny/2.], $
        nrix,nlat)
  ; polar_image will create an evenly spaced r grid - okay with this?       
 ; i think there's a way to do the model calculation once and then 
